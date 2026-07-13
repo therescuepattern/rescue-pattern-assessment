@@ -151,6 +151,7 @@ export default function App() {
   const [aiText, setAiText] = useState("");
   const [aiState, setAiState] = useState("idle"); // idle | loading | done | fallback
   const [gender, setGender] = useState("man");
+  const [resultView, setResultView] = useState("man");
   const [email, setEmail] = useState("");
   const [emailStatus, setEmailStatus] = useState("idle"); // idle | sending | done | error
   const liveRef = useRef(null);
@@ -179,6 +180,13 @@ export default function App() {
   const ranked = [...scores].sort((a, b) => b.score - a.score);
   const top = ranked.slice(0, 2);
   const blended = top[1] && top[0].score - top[1].score <= 3;
+
+  function start(g) {
+    setGender(g);
+    setResultView(g === "woman" ? "woman" : "man");
+    setStage("quiz");
+    window.scrollTo?.(0, 0);
+  }
 
   function choose(v) {
     const next = [...answers];
@@ -209,12 +217,19 @@ export default function App() {
     });
     const dominant = top.map((t) => t.name);
 
+    const genderLine =
+      gender === "man"
+        ? " This person is a man — use the male expression of the pattern where it fits: provision, protection, fixing, the white-knight/provider currency. Weave it in naturally, never as a stereotype."
+        : gender === "woman"
+        ? " This person is a woman — use the female expression of the pattern where it fits: emotional labor, caretaking, absorbing his moods, \"I'll love him into changing.\" Weave it in naturally, never as a stereotype."
+        : " Keep the language gender-neutral, since this person didn't specify — speak to the pattern itself rather than a male or female expression of it.";
+
     // 1) Production path: our serverless function at /api/read (no key in browser).
     try {
       const r = await fetch("/api/read", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ scores: scoreObjs, dominant }),
+        body: JSON.stringify({ scores: scoreObjs, dominant, gender }),
       });
       if (r.ok) {
         const data = await r.json();
@@ -225,7 +240,7 @@ export default function App() {
     // 2) Preview path: direct call works inside the Claude artifact for testing.
     try {
       const sc = scoreObjs.map((s) => `${s.name}: ${s.score}/20`).join(", ");
-      const prompt = `A person just finished a self-assessment about the "rescue pattern" — the tendency to organize identity around saving, fixing, and over-giving in relationships. Their dimension scores (0-20 each): ${sc}. Their dominant blend: ${dominant.join(" + ")}.
+      const prompt = `A person just finished a self-assessment about the "rescue pattern" — the tendency to organize identity around saving, fixing, and over-giving in relationships. Their dimension scores (0-20 each): ${sc}. Their dominant blend: ${dominant.join(" + ")}.${genderLine}
 
 Write a brief, warm, direct read of THIS specific person's pattern. Requirements:
 - Second person ("you"), 150-180 words.
@@ -253,6 +268,11 @@ Write a brief, warm, direct read of THIS specific person's pattern. Requirements
     let out = a.read;
     if (blended && b) {
       out += " " + b.read.split(". ").slice(0, 1).join(". ") + ". The two run together in you, and that combination is the engine to watch.";
+    }
+    if (gender === "man") {
+      out += " For you it tends to show up as provision, protection, fixing \u2014 the strong one, the one who saves.";
+    } else if (gender === "woman") {
+      out += " For you it tends to show up as caretaking, absorbing, \u201Cloving him into changing\u201D \u2014 the one who heals.";
     }
     out += " None of this makes you broken. It made sense once \u2014 it kept you safe. The point now is to run it on purpose instead of on autopilot.";
     return out;
@@ -291,6 +311,7 @@ Write a brief, warm, direct read of THIS specific person's pattern. Requirements
     setAnswers(Array(ALL_Q.length).fill(null));
     setI(0); setAiText(""); setAiState("idle"); setStage("intro");
     setEmail(""); setEmailStatus("idle");
+    setGender("man"); setResultView("man");
     window.scrollTo?.(0, 0);
   }
 
@@ -313,7 +334,19 @@ Write a brief, warm, direct read of THIS specific person's pattern. Requirements
               <li>about 4 minutes</li><li className="rp-dot">·</li>
               <li>scored instantly</li>
             </ul>
-            <button className="rp-btn" onClick={() => setStage("quiz")}>Begin</button>
+            <div className="rp-genderq">
+              <p className="rp-gender-prompt">
+                This pattern runs the same in everyone — but it wears a different costume.
+                Which one fits you?
+              </p>
+              <div className="rp-gender-btns">
+                <button className="rp-btn rp-gender-btn" onClick={() => start("man")}>Man</button>
+                <button className="rp-btn rp-gender-btn" onClick={() => start("woman")}>Woman</button>
+              </div>
+              <button className="rp-gender-both" onClick={() => start("both")}>
+                Show me both
+              </button>
+            </div>
             <p className="rp-disclaim">
               A self-reflection tool, not therapy or diagnosis. If what surfaces feels heavy,
               bring it to a licensed professional.
@@ -426,12 +459,12 @@ Write a brief, warm, direct read of THIS specific person's pattern. Requirements
               <div className="rp-costume-head">
                 <h3 className="rp-read-h" style={{ margin: 0 }}>Same engine, different costume</h3>
                 <div className="rp-toggle">
-                  <button className={"rp-tg" + (gender === "man" ? " rp-tg-on" : "")} onClick={() => setGender("man")}>For men</button>
-                  <button className={"rp-tg" + (gender === "woman" ? " rp-tg-on" : "")} onClick={() => setGender("woman")}>For women</button>
+                  <button className={"rp-tg" + (resultView === "man" ? " rp-tg-on" : "")} onClick={() => setResultView("man")}>For men</button>
+                  <button className={"rp-tg" + (resultView === "woman" ? " rp-tg-on" : "")} onClick={() => setResultView("woman")}>For women</button>
                 </div>
               </div>
-              <div className="rp-costume-card" style={{ background: gender === "man" ? COOL : WARM }}>
-                {gender === "man" ? (
+              <div className="rp-costume-card" style={{ background: resultView === "man" ? COOL : WARM }}>
+                {resultView === "man" ? (
                   <p>You tend to rescue through <strong>provision, protection, and fixing</strong> — the strong one, the problem-solver, the white knight. The selection runs toward the wounded partner as a project. The cover story is <em>"I'm just being a man."</em></p>
                 ) : (
                   <p>You tend to rescue through <strong>emotional labor, caretaking, and absorbing</strong> — "I'll love him into changing." The selection runs toward the man with potential: the addict, the avoidant, the one you'll heal. The cover story is <em>"I'm just being a good partner"</em> — which is why it's the hardest to see. It gets praised as virtue.</p>
@@ -489,6 +522,17 @@ const CSS = `
   padding:0;margin:0 0 30px;color:${SLATE};font-size:14px;font-weight:500;}
 .rp-dot{color:${LINE};}
 .rp-disclaim{font-size:12.5px;line-height:1.5;color:${SLATE};max-width:430px;margin:24px auto 0;}
+.rp-genderq{margin-top:6px;}
+.rp-gender-prompt{font-family:Newsreader,Georgia,serif;font-size:19px;line-height:1.5;color:${NAVY};
+  max-width:480px;margin:0 auto 20px;}
+.rp-gender-btns{display:flex;gap:12px;justify-content:center;}
+.rp-gender-btn{min-width:150px;}
+.rp-gender-both{display:block;margin:16px auto 0;background:none;border:none;cursor:pointer;
+  font-family:Inter,sans-serif;font-size:14px;font-weight:500;color:${SLATE};
+  text-decoration:underline;text-underline-offset:3px;}
+.rp-gender-both:hover{color:${NAVY};}
+.rp-gender-both:focus-visible{outline:2px solid ${CLAY};outline-offset:2px;}
+@media (max-width:480px){.rp-gender-btns{flex-direction:column;align-items:center;}.rp-gender-btn{width:100%;max-width:260px;}}
 
 /* QUIZ */
 .rp-quiz{padding-top:10px;}
