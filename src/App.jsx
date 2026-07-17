@@ -480,7 +480,7 @@ Write a brief, warm, direct read of THIS specific person's pattern. Requirements
                 practice, the ledger audit, and the partner screen you run <em>before</em> you're in deep.
               </p>
               {/* Replace href with your Gumroad / Stan / Payhip checkout link */}
-              <a className="rp-btn rp-btn-cta" href="#" onClick={(e) => e.preventDefault()}>
+              <a className="rp-btn rp-btn-cta" href="https://payhip.com/b/cDvaN" target="_blank" rel="noopener noreferrer">
                 Get the workbook →
               </a>
               <button className="rp-restart" onClick={restart}>Retake the assessment</button>
